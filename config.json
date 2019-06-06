@@ -2,7 +2,7 @@
 	"retailers": {
 		"craigslist": {
 			"fpr" : {
-				"baseUrl": "https://seattle.craigslist.org/search/sss?query=",
+				"baseUrl": "https://seattle.craigslist.org/search/sss?s=<PageNum>&query=",
 				"endUrl" : "&sort=rel"
 			}
 		}

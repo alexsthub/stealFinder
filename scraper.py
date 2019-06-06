@@ -8,33 +8,53 @@ import aiohttp
 
 import json
 
+
+# handle multiple pages.
+
 class craigslistScraper(object):
     def __init__(self, baseUrl, endingUrl):
         self.baseUrl = baseUrl
         self.endingUrl = endingUrl
+        self.pageNum = 0
+        self.newUrl = None
+
+    def paginate(self, baseUrl, pageNum):
+        self.newUrl = self.baseUrl.replace('<PageNum>', str(pageNum))
+        return self.newUrl
 
     def scrape(self, query):
-        urls = self.getPostUrls(query)
-        df = asyncio.run(self.crawlProcess(urls))
-        return df
+        # TODO: Create base df
+        ret = pd.DataFrame(columns = ['id', 'title', 'price', 'descr', 'link', 'images'])
+        while True:
+            urls = self.getPageItems(query)
+            if urls is None:
+                break
+            df = asyncio.run(self.crawlProcess(urls))
+            ret = ret.append(df)
+            self.pageNum += len(df)
+        return ret
         
     def buildQuery(self, query):
+        self.newUrl = self.paginate(self.baseUrl, self.pageNum)
         query = query.replace(' ', '+')
-        return self.baseUrl + query + self.endingUrl
+        return self.newUrl + query + self.endingUrl
 
-    def getPostUrls(self, query):
+    def getPageItems(self, query):
         urls = []
         urlString = self.buildQuery(query)
+        print(urlString)
         response = requests.get(urlString)
         soup = BeautifulSoup(response.text, 'html.parser')
         table = soup.find_all('li', class_='result-row')
+        if len(table) == 0:
+            return None
         for row in table:
             urls.append(row.find('a')['href'])
-        return urls[0:120]
+        return urls
 
     async def crawlProcess(self, urls):
         tasks = []
-        connector = aiohttp.TCPConnector(limit = 100, ssl = False)
+        connector = aiohttp.TCPConnector(limit = 50, ssl = False)
         timeout = aiohttp.ClientTimeout(total = 10000000) # arbitrary large number
         print('There are %i urls to process' % len(urls))
         async with aiohttp.ClientSession(connector=connector, timeout=timeout) as session:
@@ -87,7 +107,6 @@ class craigslistScraper(object):
 
 def getConfig(retailer, crawlType, isRetailer = True):
     # TODO : Error handling
-
     with open('config.json') as f:
         obj = json.load(f)
     obj = obj['retailers'][retailer][crawlType]
@@ -96,11 +115,10 @@ def getConfig(retailer, crawlType, isRetailer = True):
         config[key] = obj[key]
     return config
 
-
 if __name__ == "__main__":
     config = getConfig('craigslist', 'fpr')
     scraper = craigslistScraper(config['baseUrl'], config['endUrl'])
-    query = 'portable air conditioner'
+    query = 'ac unit'
     df = scraper.scrape(query)
 
     df.to_csv('test.csv', index = False)
