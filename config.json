@@ -1,0 +1,10 @@
+{
+	"retailers": {
+		"craigslist": {
+			"fpr" : {
+				"baseUrl": "https://seattle.craigslist.org/search/sss?query=",
+				"endUrl" : "&sort=rel"
+			}
+		}
+	}
+}
